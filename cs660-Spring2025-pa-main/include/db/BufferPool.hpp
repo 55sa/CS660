@@ -5,19 +5,24 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <memory>
+#include <array>
+#include <string>
 
 namespace db {
     constexpr size_t DEFAULT_NUM_PAGES = 50;
 
-/**
- * @brief Represents a buffer pool for database pages.
- * @details The BufferPool class is responsible for managing the database pages in memory.
- * It provides functions to get a page, mark a page as dirty, and check the status of pages.
- * The class also supports flushing pages to disk and discarding pages from the buffer pool.
- * @note A BufferPool owns the Page objects that are stored in it.
- */
+    /**
+     * @brief Represents a buffer pool for database pages.
+     * @details The BufferPool class is responsible for managing the database pages in memory.
+     * It provides functions to get a page, mark a page as dirty, and check the status of pages.
+     * The class also supports flushing pages to disk and discarding pages from the buffer pool.
+     * @note A BufferPool owns the Page objects that are stored in it.
+     */
     class BufferPool {
-        // TODO pa0: add private members
+        /// 私有实现类（PImpl），以隐藏具体成员
+        class Impl;
+        std::unique_ptr<Impl> pImpl;
 
     public:
         /**
@@ -31,11 +36,8 @@ namespace db {
         ~BufferPool();
 
         BufferPool(const BufferPool &) = delete;
-
         BufferPool(BufferPool &&) = delete;
-
         BufferPool &operator=(const BufferPool &) = delete;
-
         BufferPool &operator=(BufferPool &&) = delete;
 
         /**
