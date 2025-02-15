@@ -5,24 +5,26 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <memory>
-#include <array>
-#include <string>
 
 namespace db {
     constexpr size_t DEFAULT_NUM_PAGES = 50;
 
-    /**
-     * @brief Represents a buffer pool for database pages.
-     * @details The BufferPool class is responsible for managing the database pages in memory.
-     * It provides functions to get a page, mark a page as dirty, and check the status of pages.
-     * The class also supports flushing pages to disk and discarding pages from the buffer pool.
-     * @note A BufferPool owns the Page objects that are stored in it.
-     */
+/**
+ * @brief Represents a buffer pool for database pages.
+ * @details The BufferPool class is responsible for managing the database pages in memory.
+ * It provides functions to get a page, mark a page as dirty, and check the status of pages.
+ * The class also supports flushing pages to disk and discarding pages from the buffer pool.
+ * @note A BufferPool owns the Page objects that are stored in it.
+ */
     class BufferPool {
-        /// 私有实现类（PImpl），以隐藏具体成员
-        class Impl;
-        std::unique_ptr<Impl> pImpl;
+        // TODO pa0: add private members
+        std::array<Page, DEFAULT_NUM_PAGES> pages;
+        std::array<PageId, DEFAULT_NUM_PAGES> pos_to_pid;
+        std::unordered_map<const PageId, size_t> pid_to_pos;
+        std::unordered_set<size_t> dirty;
+        std::vector<size_t> available;
+        std::list<size_t> lru_list;
+        std::unordered_map<size_t, std::list<size_t>::iterator> pos_to_lru;
 
     public:
         /**
@@ -36,8 +38,11 @@ namespace db {
         ~BufferPool();
 
         BufferPool(const BufferPool &) = delete;
+
         BufferPool(BufferPool &&) = delete;
+
         BufferPool &operator=(const BufferPool &) = delete;
+
         BufferPool &operator=(BufferPool &&) = delete;
 
         /**

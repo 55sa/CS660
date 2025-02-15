@@ -1,222 +1,106 @@
 #include <db/BufferPool.hpp>
 #include <db/Database.hpp>
-#include <stdexcept>
-#include <algorithm>
+#include <numeric>
 
-namespace db {
+using namespace db;
 
-
-struct Frame {
-    bool inUse = false;
-    bool dirty = false;
-    PageId pid{};
-    Page page{};
-};
-
-class BufferPool::Impl {
-public:
-
-    std::array<Frame, DEFAULT_NUM_PAGES> frames;
-
-
-    std::list<size_t> lruList;
-
-
-    std::unordered_map<PageId, size_t, std::hash<PageId>> pageTable;
-
-    Impl() {
-
-    }
-
-
-    void moveToFrontOfLRU(size_t idx) {
-
-        lruList.remove(idx);
-        lruList.push_front(idx);
-    }
-
-
-    size_t findFreeSlot() const {
-        for (size_t i = 0; i < DEFAULT_NUM_PAGES; i++) {
-            if (!frames[i].inUse) {
-                return i;
-            }
-        }
-        return npos;
-    }
-
-
-    void evictOnePage() {
-        if (lruList.empty()) {
-            throw std::runtime_error("No page to evict, but buffer is full. Something is wrong!");
-        }
-
-        size_t victim = lruList.back();
-        Frame &frm = frames[victim];
-
-        if (frm.dirty) {
-            flushOnePage(frm.pid, frm);
-        }
-
-        pageTable.erase(frm.pid);
-
-
-        frm.inUse = false;
-        frm.dirty = false;
-        frm.pid = PageId{};
-
-
-        lruList.pop_back();
-    }
-
-
-    void flushOnePage(const PageId &pid, Frame &frm) {
-        auto &dbFile = getDatabase().get(pid.file);
-        dbFile.writePage(frm.page, pid.page);
-        frm.dirty = false;
-    }
-
-
-    static constexpr size_t npos = static_cast<size_t>(-1);
-};
-
-BufferPool::BufferPool()
-    : pImpl(std::make_unique<Impl>())
-{
-
+BufferPool::BufferPool() : available(DEFAULT_NUM_PAGES) {
+    // TODO pa0
+    std::iota(available.rbegin(), available.rend(), 0);
 }
 
 BufferPool::~BufferPool() {
-    // TODO pa0:
-    for (size_t i = 0; i < DEFAULT_NUM_PAGES; i++) {
-        Frame &frm = pImpl->frames[i];
-        if (frm.inUse && frm.dirty) {
-            pImpl->flushOnePage(frm.pid, frm);
-        }
+    // TODO pa0
+    for (const size_t &pos: dirty) {
+        const Page &page = pages[pos];
+        const PageId &pid = pos_to_pid[pos];
+        getDatabase().get(pid.file).writePage(page, pid.page);
     }
 }
 
 Page &BufferPool::getPage(const PageId &pid) {
-    // TODO pa0:
-
-
-    auto it = pImpl->pageTable.find(pid);
-    if (it != pImpl->pageTable.end()) {
-
-        size_t idx = it->second;
-
-        pImpl->moveToFrontOfLRU(idx);
-        return pImpl->frames[idx].page;
+    // TODO pa0
+    // If already in buffer pool, make it the most recent page and return it
+    if (contains(pid)) {
+        size_t pos = pid_to_pos.at(pid);
+        lru_list.splice(lru_list.begin(), lru_list, pos_to_lru[pos]);
+        pos_to_lru[pos] = lru_list.begin();
+        return pages[pos];
     }
 
-
-    size_t freeIdx = pImpl->findFreeSlot();
-    if (freeIdx == Impl::npos) {
-
-        pImpl->evictOnePage();
-
-        freeIdx = pImpl->findFreeSlot();
-        if (freeIdx == Impl::npos) {
-
-            throw std::runtime_error("Cannot find free slot after eviction");
+    // If there are no available pages, evict the least recently used page. If the page is dirty, flush it to disk
+    if (available.empty()) {
+        size_t pos = lru_list.back();
+        const PageId &old_pid = pos_to_pid.at(pos);
+        if (isDirty(old_pid)) {
+            flushPage(old_pid);
         }
+        discardPage(old_pid);
     }
 
+    // Read the page from disk to one of the available slots, make it the most recent page
+    size_t pos = available.back();
+    available.pop_back();
 
-    Frame &frm = pImpl->frames[freeIdx];
-    frm.inUse = true;
-    frm.dirty = false;
-    frm.pid = pid;
+    Page &page = pages[pos];
+    getDatabase().get(pid.file).readPage(page, pid.page);
+    pid_to_pos[pid] = pos;
+    pos_to_pid[pos] = pid;
 
+    lru_list.push_front(pos);
+    pos_to_lru[pos] = lru_list.begin();
 
-    {
-        auto &dbFile = getDatabase().get(pid.file);
-        dbFile.readPage(frm.page, pid.page);
-    }
-
-
-    pImpl->pageTable[pid] = freeIdx;
-
-    pImpl->moveToFrontOfLRU(freeIdx);
-
-    return frm.page;
+    return page;
 }
 
 void BufferPool::markDirty(const PageId &pid) {
     // TODO pa0
-    auto it = pImpl->pageTable.find(pid);
-    if (it == pImpl->pageTable.end()) {
-
-        return;
-    }
-    size_t idx = it->second;
-    pImpl->frames[idx].dirty = true;
+    size_t pos = pid_to_pos.at(pid);
+    dirty.insert(pos);
 }
 
-    bool BufferPool::isDirty(const PageId &pid) const {
-
-    auto it = pImpl->pageTable.find(pid);
-    if (it == pImpl->pageTable.end()) {
-
-        throw std::runtime_error("Page not found in BufferPool::isDirty()");
-    }
-
-    return pImpl->frames[it->second].dirty;
+bool BufferPool::isDirty(const PageId &pid) const {
+    // TODO pa0
+    size_t pos = pid_to_pos.at(pid);
+    return dirty.contains(pos);
 }
-
 
 bool BufferPool::contains(const PageId &pid) const {
     // TODO pa0
-    return (pImpl->pageTable.find(pid) != pImpl->pageTable.end());
+    return pid_to_pos.contains(pid);
 }
 
 void BufferPool::discardPage(const PageId &pid) {
     // TODO pa0
-    auto it = pImpl->pageTable.find(pid);
-    if (it == pImpl->pageTable.end()) {
+    size_t pos = pid_to_pos.at(pid);
+    pid_to_pos.erase(pid);
+    pos_to_pid[pos] = {};
 
-        return;
-    }
-    size_t idx = it->second;
-
-
-    pImpl->pageTable.erase(it);
-
-
-    pImpl->lruList.remove(idx);
-
-
-    Frame &frm = pImpl->frames[idx];
-    frm.inUse = false;
-    frm.dirty = false;
-    frm.pid = PageId{};
+    lru_list.erase(pos_to_lru[pos]);
+    pos_to_lru.erase(pos);
+    dirty.erase(pos);
+    available.push_back(pos);
 }
 
 void BufferPool::flushPage(const PageId &pid) {
     // TODO pa0
-    auto it = pImpl->pageTable.find(pid);
-    if (it == pImpl->pageTable.end()) {
-
+    size_t pos = pid_to_pos.at(pid);
+    if (dirty.erase(pos) == 0)
         return;
-    }
-    size_t idx = it->second;
-    Frame &frm = pImpl->frames[idx];
-
-    if (frm.dirty) {
-        pImpl->flushOnePage(pid, frm);
-    }
+    const Page &page = pages[pos];
+    getDatabase().get(pid.file).writePage(page, pid.page);
 }
 
 void BufferPool::flushFile(const std::string &file) {
     // TODO pa0
-
-    for (size_t i = 0; i < DEFAULT_NUM_PAGES; i++) {
-        Frame &frm = pImpl->frames[i];
-        if (frm.inUse && frm.pid.file == file && frm.dirty) {
-
-            pImpl->flushOnePage(frm.pid, frm);
+    std::vector<size_t> to_flush;
+    for (const size_t &pos: dirty) {
+        const PageId &pid = pos_to_pid[pos];
+        if (pid.file == file) {
+            to_flush.emplace_back(pid.page);
         }
     }
-}
-
+    for (const auto &page: to_flush) {
+        flushPage({file, page});
+    }
 }

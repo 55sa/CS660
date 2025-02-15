@@ -30,17 +30,9 @@ namespace db {
     using Page = std::array<uint8_t, DEFAULT_PAGE_SIZE>;
 } // namespace db
 
-namespace std {
-
-    template<>
-    struct hash<db::PageId> {
-        size_t operator()(db::PageId const &pid) const noexcept {
-            auto h1 = std::hash<std::string>()(pid.file);
-            auto h2 = std::hash<size_t>()(pid.page);
-
-            return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
-        }
-    };
-
-} // namespace std
-
+template<>
+struct std::hash<const db::PageId> {
+    std::size_t operator()(const db::PageId &r) const {
+        return std::hash<std::string>()(r.file) ^ std::hash<size_t>()(r.page);
+    }
+};

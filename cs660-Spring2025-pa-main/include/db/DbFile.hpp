@@ -16,12 +16,13 @@ namespace db {
         mutable std::vector<size_t> reads;
         mutable std::vector<size_t> writes;
 
-        int fd;
+        // TODO pa1: add private members
 
     protected:
         const std::string name;
         const TupleDesc td;
         size_t numPages;
+        int fd; // file descriptor
 
     public:
         /**

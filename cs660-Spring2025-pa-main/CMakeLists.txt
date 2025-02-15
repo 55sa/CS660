@@ -21,7 +21,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-file(GLOB_RECURSE CPP_TESTS tests/pa0/*)
+file(GLOB_RECURSE CPP_TESTS tests/pa1/*)
 
 add_executable(pa_test ${CPP_TESTS})
 target_link_libraries(pa_test PRIVATE db GTest::gtest_main)
