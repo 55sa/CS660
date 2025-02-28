@@ -183,7 +183,7 @@
 ## 3. `TupleDesc::index_of`
 
 - **Iteration:**  
-  The function loops through the `field_names` vector to find a match.
+  The function loops through the `field_names` vector to find a match. Returns the index if found
 - **Error Handling:**  
   If the field name is not found, it throws a `std::runtime_error` with an appropriate error message.
 
@@ -207,12 +207,8 @@
 
 - **Field Iteration:**  
   Iterates over each field defined in the descriptor.
-- **Primitive Types:**  
-  - For `INT`, copies `INT_SIZE` bytes into an `int` variable.
-  - For `DOUBLE`, copies `DOUBLE_SIZE` bytes into a `double` variable.
-- **CHAR Type Handling:**  
-  - Copies `CHAR_SIZE` bytes into a buffer.
-  - Ensures the buffer is null-terminated before converting it into a `std::string`.
+- **Deserialize:**  
+  Deserializes each field based on its type (INT, DOUBLE, or CHAR)
 - **Tuple Assembly:**  
   Constructs a vector of fields which is then used to create and return a new `Tuple`.
 
@@ -223,18 +219,6 @@
 - **Compatibility Check:**  
   Uses the `compatible` method to ensure that the tuple's schema matches the descriptor. Throws an exception if they are incompatible.
 - **Field Serialization:**  
-  - For `INT` and `DOUBLE`, uses `std::memcpy` to write the data at the correct offset.
-  - For `CHAR` fields, creates a temporary buffer, zeroes it out, copies the string data up to `CHAR_SIZE`, and then writes the buffer to the output array.
-
----
-
-## 8. `TupleDesc::merge`
-
-- **Combining Fields:**  
-  New vectors for types and names are created by first inserting all fields from the first descriptor and then from the second.
-- **Duplicate Check:**  
-  Uses an `unordered_set` to ensure that field names do not duplicate across the merged schema. Throws a `std::logic_error` if a duplicate is detected.
-- **Creation of Merged Descriptor:**  
-  Constructs and returns a new `TupleDesc` object based on the combined types and names.
+  Iterates through each field, serializing it based on its type
 
 ---
