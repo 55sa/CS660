@@ -7,14 +7,12 @@
   - Compute the total size of a tuple using the tuple descriptor (`td.length()`).
 
 - **Capacity Calculation:**  
-  - Determine the total number of bits available in the page:  
+  - Determine the total number of bits available on the page:  
     `page_bits = DEFAULT_PAGE_SIZE * 8`.
   - Calculate bits required per tuple:  
     `bits_per_tuple = (tuple_size * 8) + 1` (the extra bit is for the header).
-  - Use integer division to compute the maximum number of tuples.
 
 - **Header Size Computation:**  
-  - Each tuple slot is tracked using one bit.
   - The header size in bytes is given by:  
     `header_size = (capacity + 7) / 8` (rounding up to ensure full bytes).
 
@@ -24,8 +22,8 @@
   - Determine any leftover space by subtracting the combined size of the header and the tuple data area from the total page size.
 
 - **Pointer Initialization:**  
-  - **Header Pointer:** Set to the beginning of the page buffer.
-  - **Data Pointer:** Set after the header and any leftover space, ensuring no overlap between header and data.
+  - Header Pointer: Set to the beginning of the page buffer.
+  - Data Pointer: Set after the header and any remaining space, making sure there is no overlap between the header and the data.
 
 ---
 
@@ -109,16 +107,16 @@
 ## 1. Opening the File and Initializing `numPages`
 
 - **File Opening:**
-  - The constructor uses the system call `open()` with the flags `O_RDWR | O_CREAT`. This ensures the file is opened for reading and writing, and if it does not exist, it is created.
-  - A permission mode of `0666` is provided, allowing read and write permissions for the owner, group, and others.
-  - If the call to `open()` fails (i.e., returns a negative file descriptor), a runtime exception is thrown with a descriptive error message that includes the `errno` value.
+  - The constructor uses the system call `open()` with the flags `O_RDWR | O_CREAT`, meaning that the file is opened for reading and writing, and if it does not exist, it is created.
+  - A permission mode of `0666` is provided, allowing read and write permissions.
+  - If the call to `open()` fails, a runtime exception is thrown.
 
 - **Determining the File Size:**
   - The `fstat()` system call is used to retrieve metadata about the file, specifically its size (`st.st_size`).
   - If `fstat()` fails, the file descriptor is closed and a runtime exception is thrown.
 
 - **Initializing `numPages`:**
-  - If the file size is zero (indicating an empty file), the file is extended to one default page size using `ftruncate()`, and `numPages` is set to 1.
+  - If the file size is zero, the file is extended to one default page size using `ftruncate()`, and `numPages` is set to 1.
   - If the file contains data, the implementation verifies that the file size is a multiple of `DEFAULT_PAGE_SIZE`. If it is not, an exception is thrown.
   - Otherwise, `numPages` is computed as the file size divided by `DEFAULT_PAGE_SIZE`. A safeguard ensures that `numPages` is at least 1.
 
@@ -135,10 +133,9 @@
 ## 3. Reading a Page
 
 - **Offset Calculation:**
-  - The byte offset is computed by multiplying the page number (`id`) by `DEFAULT_PAGE_SIZE`.
+  - The byte offset is computed by multiplying `id` by `DEFAULT_PAGE_SIZE`.
 
 - **Reading with `pread()`:**
-  - The `pread()` system call reads data from the file into the page buffer at the calculated offset.
   - `pread()` is used because it does not change the file descriptor’s offset, making it thread-safe and allowing for concurrent read operations.
 
 - **Error Checking:**
@@ -153,7 +150,6 @@
   - Similar to reading, the offset is calculated by multiplying the page number (`id`) by `DEFAULT_PAGE_SIZE`.
 
 - **Writing with `pwrite()`:**
-  - The `pwrite()` system call writes data from the page buffer to the file at the calculated offset.
   - `pwrite()` maintains the current file offset, ensuring that write operations are thread-safe.
 
 - **Error Checking:**
