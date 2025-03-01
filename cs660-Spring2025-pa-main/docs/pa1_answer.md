@@ -14,5 +14,10 @@ instead of leaving it in place, swap it with the last page in the file.
 
 **Q2**
 n this assignment we have fixed size fields. How can we support variable size fields (e.g. VARCHAR)?
- - like the IPv4 packet header, which has field of "Total Length", it can indicate the length of the packet. We can add a prefix to the tuple to indicate the length of the tuple. 
-And we can use the length in the function in the TupleDesc.ccp
+ - like the IPv4 packet header, which has field of "Total Length", it can indicate the length of the packet. We can add a prefix to the tuple to indicate the length of the tuple.
+This change is to let the tuple “carry” its own length so that variable‐length fields can be stored and later parsed correctly. Thus, To support variable‐length fields, 
+we need modify the serialization/deserialization routines to write and read a length prefix.
+ - In TupleDesc::serialize: Instead of writing field data at predetermined fixed offsets, first compute the actual length of the tuple.
+Then, write a prefix (for example, a 4‑byte integer) with that total length into the output buffer before writing the individual field values.
+ - In TupleDesc::deserialize: It needs first reads the length prefix from the input data. That prefix tells you how many bytes form the entire tuple.
+Then, when deserializing, for variable‐length fields, read the length and use that value to correctly extract the field data from the byte stream.
