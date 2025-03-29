@@ -57,6 +57,9 @@ namespace db {
          * @return The tuple read from the page.
          */
         Tuple getTuple(size_t slot) const;
+
+
+        void clear();
     };
 
 } // namespace db
