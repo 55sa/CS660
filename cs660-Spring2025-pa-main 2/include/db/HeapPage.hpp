@@ -4,7 +4,7 @@
 
 namespace db {
     class HeapPage {
-       const TupleDesc &td;
+        const TupleDesc &td;
         size_t capacity;
         uint8_t *header;
         uint8_t *data;
