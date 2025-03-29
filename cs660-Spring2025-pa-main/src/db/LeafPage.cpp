@@ -21,42 +21,43 @@
      }
  }
 
- /*
-  * 插入元组：
-  *  - 如果页面已经满（即 header->size >= capacity），则返回 false 表示不能插入，需要在上层触发分裂。
-  *  - 否则，按 key 的升序插入新元组：
-  *      - 若 key 已存在，则更新对应元组，并返回 false（不触发分裂）。
-  *      - 若插入后页面未满，则返回 false；
-  *      - 若插入后页面恰好满了，则返回 true，告知上层需要分裂该叶页。
-  */
- bool LeafPage::insertTuple(const Tuple &t) {
+bool LeafPage::insertTuple(const Tuple &t) {
      int key = std::get<int>(t.get_field(key_index));
-     // 如果页面已经满，则不能插入
+     // 先扫描所有已有元组，若存在相同 key，则更新记录
+     for (int pos = 0; pos < header->size; pos++) {
+         Tuple curr = getTuple(pos);
+         int currKey = std::get<int>(curr.get_field(key_index));
+         if (currKey == key) {
+             // 更新已有元组，不触发分裂，但返回页面是否满
+             td.serialize(data + pos * td.length(), t);
+             return (header->size == capacity);
+         }
+     }
+     // 如果页面已经满，则无法插入新元组（调用者会触发分裂）
      if (header->size >= capacity)
-          return false;
+         return false;
+     // 查找新元组应插入的位置，保持 key 升序
      int pos = 0;
-     for (; pos < header->size; pos++) {
-          Tuple curr = getTuple(pos);
-          int currKey = std::get<int>(curr.get_field(key_index));
-          if (key < currKey)
-               break;
-          if (key == currKey) {
-               // 更新已有元组，不触发分裂
-               td.serialize(data + pos * td.length(), t);
-               return false;
-          }
+     while (pos < header->size) {
+         Tuple curr = getTuple(pos);
+         int currKey = std::get<int>(curr.get_field(key_index));
+         if (key < currKey)
+             break;
+         pos++;
      }
-     // 后移数据，为新元组腾出位置
+     // 将后面的元组后移，为新元组腾出空间
      for (int i = header->size; i > pos; i--) {
-          std::memmove(data + i * td.length(),
-                       data + (i - 1) * td.length(),
-                       td.length());
+         std::memmove(data + i * td.length(),
+                      data + (i - 1) * td.length(),
+                      td.length());
      }
+     // 写入新元组
      td.serialize(data + pos * td.length(), t);
      header->size++;
-     // 如果刚好填满，返回 true（告知需要分裂），否则返回 false
+     // 返回 true 表示插入后刚好满了，false 表示还有剩余空间
      return (header->size == capacity);
  }
+
 
  /*
   * 分裂叶页：

@@ -51,9 +51,9 @@ TEST(BTreeTest, SortedAccess) {
         i++;
     }
     EXPECT_EQ(i, 1000000);
-//    EXPECT_LE(file.getReads().size(), 77148);
+  // EXPECT_LE(file.getReads().size(), 77148);
     EXPECT_NEAR(file.getReads().size(), 80000, 20000);
-//    EXPECT_LE(file.getWrites().size(), 38686);
+  // EXPECT_LE(file.getWrites().size(), 38686);
     EXPECT_NEAR(file.getWrites().size(), 40000, 10000);
 }
 
@@ -97,8 +97,8 @@ TEST(BTreeTest, RandomAccess) {
         i++;
     }
     EXPECT_EQ(i, 1000000);
-//    EXPECT_LE(file.getReads().size(), 75315);
+  // EXPECT_LE(file.getReads().size(), 75315);
     EXPECT_NEAR(file.getReads().size(), 80000, 20000);
-//    EXPECT_LE(file.getWrites().size(), 47142);
+  // EXPECT_LE(file.getWrites().size(), 47142);
     EXPECT_NEAR(file.getWrites().size(), 45000, 10000);
 }
