@@ -22,41 +22,46 @@
  }
 
 bool LeafPage::insertTuple(const Tuple &t) {
+     // 提取待插入元组的 key
      int key = std::get<int>(t.get_field(key_index));
-     // 先扫描所有已有元组，若存在相同 key，则更新记录
-     for (int pos = 0; pos < header->size; pos++) {
-         Tuple curr = getTuple(pos);
-         int currKey = std::get<int>(curr.get_field(key_index));
+     int tupleSize = td.length();
+     // 计算 key 在每个元组中的偏移量（假设 TupleDesc 提供 offset_of 方法）
+     size_t key_offset = td.offset_of(key_index);
+
+     // 二分查找：确定应插入的位置 low
+     size_t low = 0, high = header->size;
+     while (low < high) {
+         size_t mid = (low + high) / 2;
+         int midKey = *reinterpret_cast<int*>(data + mid * tupleSize + key_offset);
+         if (midKey < key)
+             low = mid + 1;
+         else
+             high = mid;
+     }
+     size_t pos = low;
+     // 若在 pos 处存在相同的 key，则更新已有元组
+     if (pos < header->size) {
+         int currKey = *reinterpret_cast<int*>(data + pos * tupleSize + key_offset);
          if (currKey == key) {
-             // 更新已有元组，不触发分裂，但返回页面是否满
-             td.serialize(data + pos * td.length(), t);
+             td.serialize(data + pos * tupleSize, t);
              return (header->size == capacity);
          }
      }
-     // 如果页面已经满，则无法插入新元组（调用者会触发分裂）
+     // 如果页面已满，则无法插入（调用者会处理分裂）
      if (header->size >= capacity)
          return false;
-     // 查找新元组应插入的位置，保持 key 升序
-     int pos = 0;
-     while (pos < header->size) {
-         Tuple curr = getTuple(pos);
-         int currKey = std::get<int>(curr.get_field(key_index));
-         if (key < currKey)
-             break;
-         pos++;
-     }
-     // 将后面的元组后移，为新元组腾出空间
-     for (int i = header->size; i > pos; i--) {
-         std::memmove(data + i * td.length(),
-                      data + (i - 1) * td.length(),
-                      td.length());
+     // 将 pos 后的数据向后移动，为新元组腾出空间
+     for (int i = header->size; i > static_cast<int>(pos); i--) {
+         std::memmove(data + i * tupleSize,
+                      data + (i - 1) * tupleSize,
+                      tupleSize);
      }
      // 写入新元组
-     td.serialize(data + pos * td.length(), t);
+     td.serialize(data + pos * tupleSize, t);
      header->size++;
-     // 返回 true 表示插入后刚好满了，false 表示还有剩余空间
      return (header->size == capacity);
  }
+
 
 
  /*
